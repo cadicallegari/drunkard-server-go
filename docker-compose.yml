@@ -1,0 +1,28 @@
+version: '3'
+services:
+
+  db:
+    image: postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgrespasswd
+      - POSTGRES_DB=drunkarddev-dev
+    volumes:
+      - ./db/schemas/:/docker-entrypoint-initdb.d/
+    ports:
+      - "5432:5432"
+
+  drunkarddev:
+    working_dir: /go/src/cadicallegari/drunkard/
+    build:
+      context: .
+      dockerfile: ./hack/Dockerfile.dev
+    depends_on:
+      - db
+
+  drunkard:
+    image: cadicallegari/drunkard
+    depends_on:
+      - db
+    ports:
+      - "3000:8080"
