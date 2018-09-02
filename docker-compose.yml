@@ -6,7 +6,7 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgrespasswd
-      - POSTGRES_DB=drunkarddev-dev
+      - POSTGRES_DB=drunkard-dev
     volumes:
       - ./db/schemas/:/docker-entrypoint-initdb.d/
     ports:
@@ -17,12 +17,16 @@ services:
     build:
       context: .
       dockerfile: ./hack/Dockerfile.dev
+    env_file:
+      - ./hack/env.dev
     depends_on:
       - db
 
   drunkard:
     image: cadicallegari/drunkard
+    env_file:
+      - ./hack/env
     depends_on:
       - db
     ports:
-      - "3000:8080"
+      - "8080:8080"

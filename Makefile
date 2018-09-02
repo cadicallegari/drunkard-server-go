@@ -35,8 +35,8 @@ imagedev:
 
 vendor: imagedev
 	$(runcmd) ./hack/vendor.sh
-	chown -R $(USER):$(USER) ./vendor
-	chown -R $(USER):$(USER) ./Godeps
+	sudo chown -R $(USER):$(id -g -n) ./vendor
+	sudo chown -R $(USER):$(id -g -n) ./Godeps
 
 build: imagedev
 	$(runcmd) go build -v -ldflags "-X main.Version=$(gitversion)" -o ./cmd/drunkard/drunkard ./cmd/drunkard/main.go
