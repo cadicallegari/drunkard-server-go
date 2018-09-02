@@ -1,12 +1,3 @@
-/*
-	trying some archteture like
-	or
-	http://idiomaticgo.com/post/best-practice/server-project-layout/
-	or
-	https://github.com/bxcodec/go-clean-arch
-	or
-	https://github.com/golang-standards/project-layout
-*/
 package main
 
 import (
@@ -14,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"cadicallegari/drunkard/pkg/server"
@@ -25,14 +17,13 @@ var (
 )
 
 func newDB() *sql.DB {
-	// use env var or other configurable thing
 	url := fmt.Sprintf(
 		"postgresql://%s:%s@%s:%s/%s?sslmode=disable",
-		"postgres",
-		"postgrespasswd",
-		"db",
-		"5432",
-		"drunkard",
+		os.Getenv("POSTGRES_USER"),
+		os.Getenv("POSTGRES_PASSWORD"),
+		os.Getenv("POSTGRES_SERVICE_HOST"),
+		os.Getenv("POSTGRES_SERVICE_PORT"),
+		os.Getenv("POSTGRES_DB_NAME"),
 	)
 
 	db, err := sql.Open("postgres", url)
@@ -48,7 +39,6 @@ func main() {
 	handler := server.New(newDB())
 
 	port := "8080"
-	// port := helper.GetEnvVarString("SERVER_PORT")
 	server := &http.Server{
 		Addr:        fmt.Sprintf(":%s", port),
 		Handler:     handler,
