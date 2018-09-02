@@ -1,100 +1,99 @@
-/*
-trying to follow some advices from
-https://medium.com/statuscode/how-i-write-go-http-services-after-seven-years-37c208122831
-*/
-
 package server
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	_ "github.com/lib/pq"
-	"html/template"
 	"io"
+	"log"
 	"net/http"
 )
 
 type serv struct {
 	db     *sql.DB
 	router *http.ServeMux
-	// email  EmailSender
 }
 
-func (s *serv) handleHello() http.HandlerFunc {
-	msg := `
-    <html><body>
-        <h1>Hello!</h1>
-        <h1>%s</h1>
-        <form method='POST' action='/hello'>
-            <h2>What would you like me to say?</h2>
-            <input name="message" type="text" >
-            <input type="submit" value="Submit">
-        </form>
-    </body></html>`
+type record struct {
+	Pk    string `json:"pk"`
+	Score string `json:"score"`
+}
 
+func saveRecord(db *sql.DB, r record) error {
+	_, err := db.Exec(
+		`INSERT INTO records (
+			pk,
+			score,
+			created_at
+		) VALUES ($1, $2, now())`,
+		r.Pk,
+		r.Score,
+	)
+
+	return err
+}
+
+func (s *serv) handleHealthz() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		content := ""
-
 		switch r.Method {
 		case http.MethodPost:
-			if err := r.ParseForm(); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			content = r.FormValue("message")
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "text/html")
-		io.WriteString(w, fmt.Sprintf(msg, content))
-
+		io.WriteString(w, "ok")
 	}
 
 }
 
-func (s *serv) handleRestaurants() http.HandlerFunc {
-	// fp := path.Join("templates", "index.html")
-
-	// tmpl, err := template.ParseFiles(fp)
-	// if err != nil {
-	//     http.Error(w, err.Error(), http.StatusInternalServerError)
-	//     return
-	// }
-
-	// if err := tmpl.Execute(w, book); err != nil {
-	//  http.Error(w, err.Error(), http.StatusInternalServerError)
-	// }
-
-	tmpl := template.Must(template.ParseFiles("/templates/index.tmpl.html"))
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		// content := ""
-
-		switch r.Method {
-		case http.MethodPost:
-			if err := r.ParseForm(); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			// content = r.FormValue("message")
+func (s *serv) handleRecords() http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == http.MethodPost {
+			s.handlePostRecordsRequest(w, req)
+			return
 		}
 
-		// w.WriteHeader(http.StatusOK)
-		// w.Header().Set("Content-Type", "text/html")
-		// io.WriteString(w, fmt.Sprintf(msg, content))
-
-		bla := struct {
-			Msg string
-		}{
-			Msg: "ma oeee",
-		}
-
-		if err := tmpl.Execute(w, bla); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		handleError(
+			w,
+			http.StatusMethodNotAllowed,
+			fmt.Errorf("Method [%s] Not Allowed", req.Method),
+		)
 
 	}
+}
 
+func (s *serv) handlePostRecordsRequest(w http.ResponseWriter, req *http.Request) {
+	dec := json.NewDecoder(req.Body)
+	status := http.StatusCreated
+	for {
+		var r record
+
+		if err := dec.Decode(&r); err == io.EOF {
+			break
+		} else if err != nil {
+			log.Println(err)
+			status = http.StatusBadRequest
+		}
+
+		if err := saveRecord(s.db, r); err != nil {
+			log.Println(err)
+			status = http.StatusUnprocessableEntity
+		}
+	}
+
+	w.WriteHeader(status)
+}
+
+func handleError(w http.ResponseWriter, statusCode int, err error) {
+	var msg string
+	if err != nil {
+		msg = fmt.Sprintf(`{"error": %q}`, err)
+	}
+	fmt.Sprintf("Error: %s", msg)
+	fmt.Println(msg)
+	http.Error(w, msg, statusCode)
 }
 
 func New(db *sql.DB) *http.ServeMux {

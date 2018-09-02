@@ -13,10 +13,6 @@ func logRequestMidleware(fn http.HandlerFunc) http.HandlerFunc {
 }
 
 func (s *serv) routes() {
-	s.router.HandleFunc("/hello", logRequestMidleware(s.handleHello()))
-	s.router.HandleFunc("/restaurants", logRequestMidleware(s.handleRestaurants()))
-	// s.router.HandleFunc("/api/", s.handleAPI())
-	// s.router.HandleFunc("/about", s.handleAbout())
-	// s.router.HandleFunc("/", s.handleIndex())
-	// s.router.HandleFunc("/admin", s.adminOnly(s.handleAdminIndex))
+	s.router.HandleFunc("/healthz", logRequestMidleware(s.handleHealthz()))
+	s.router.HandleFunc("/records", logRequestMidleware(s.handleRecords()))
 }
