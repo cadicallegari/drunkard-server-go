@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 
 	"cadicallegari/drunkard/pkg/server"
@@ -30,19 +32,18 @@ func ok(tb testing.TB, err error, msg string) {
 
 func equals(tb testing.TB, exp, act interface{}, msg string) {
 	if exp != act {
-		tb.Errorf("%s, not equals: %q, but got: %q", msg, exp, act)
+		tb.Errorf("%s, not equals: expecting %v, but got: %v", msg, exp, act)
 	}
 }
 
 func newDB(t *testing.T) *sql.DB {
-	// use env var or other configurable thing
 	url := fmt.Sprintf(
 		"postgresql://%s:%s@%s:%s/%s?sslmode=disable",
-		"postgres",
-		"postgrespasswd",
-		"db",
-		"5432",
-		"drunkard-dev",
+		os.Getenv("POSTGRES_USER"),
+		os.Getenv("POSTGRES_PASSWORD"),
+		os.Getenv("POSTGRES_SERVICE_HOST"),
+		os.Getenv("POSTGRES_SERVICE_PORT"),
+		os.Getenv("POSTGRES_DB_NAME"),
 	)
 
 	db, err := sql.Open("postgres", url)
@@ -53,24 +54,73 @@ func newDB(t *testing.T) *sql.DB {
 	return db
 }
 
-func TestHandleHello(t *testing.T) {
+func setup(t *testing.T) (*http.ServeMux, func()) {
+	db := newDB(t)
+	return server.New(db), func() {
+		db.Exec("TRUNCATE TABLE records CASCADE")
+	}
+}
+
+func TestShouldBeHealth(t *testing.T) {
 	srv := server.New(newDB(t))
 
 	res := httptest.NewRecorder()
-	req, err := http.NewRequest("GET", "/hello", nil)
-	ok(t, err, "creating about request")
+	req, err := http.NewRequest("GET", "/healthz", nil)
+	ok(t, err, "creating healthz request")
 
 	srv.ServeHTTP(res, req)
 	equals(t, res.Code, http.StatusOK, "response code")
 }
 
-func TestHandleListRestaurants(t *testing.T) {
-	srv := server.New(newDB(t))
+func TestHandleNewRecordProperly(t *testing.T) {
+	srv, teardown := setup(t)
+	defer teardown()
 
 	res := httptest.NewRecorder()
-	req, err := http.NewRequest("GET", "/restaurants", nil)
-	ok(t, err, "creating about request")
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/records",
+		strings.NewReader(`{"pk": "50", "score": "98"}`),
+	)
 
 	srv.ServeHTTP(res, req)
-	equals(t, res.Code, http.StatusOK, "response code")
+	equals(t, http.StatusCreated, res.Code, "status code")
+}
+
+func TestHandleBunchOfNewRecordsProperly(t *testing.T) {
+	srv, teardown := setup(t)
+	defer teardown()
+
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/records",
+		strings.NewReader(`
+			{"pk": "51", "score": "98"}
+			{"pk": "52", "score": "98"}
+			{"pk": "53", "score": "98"}
+			{"pk": "54", "score": "98"}
+		`),
+	)
+
+	srv.ServeHTTP(res, req)
+	equals(t, http.StatusCreated, res.Code, "status code")
+}
+
+func TestShouldReturnNotProcessedWhenPKAlreadExists(t *testing.T) {
+	srv, teardown := setup(t)
+	defer teardown()
+
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/records",
+		strings.NewReader(`
+			{"pk": "same", "score": "98"}
+			{"pk": "same", "score": "98"}
+		`),
+	)
+
+	srv.ServeHTTP(res, req)
+	equals(t, http.StatusUnprocessableEntity, res.Code, "status code")
 }
