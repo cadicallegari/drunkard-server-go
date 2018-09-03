@@ -1,40 +1,22 @@
-# drunkard
+# drunkard server
 
-TODO brief intro
+The idea behind that project, is simulate a way to put data into a database, a lot of data,
+as a drunkard do with beers =)
 
-## Why
 
-TODO
+## Run locally
+
+```
+make run
+```
 
 ## Testing
 
-Run:
-
 ```
-make check
-```
-
-To get coverage results from tests:
-
-```
-make coverage
-```
-
-Open generated coverage on a browser:
-
-```
-make coverage-show
-```
-
-To perform static analysis:
-
-```
-make analyze
+make check-integration
 ```
 
 ## Releasing
-
-Run:
 
 ```
 make release version=<version>
