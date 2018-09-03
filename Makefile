@@ -1,12 +1,6 @@
-# TODO change packagename
-# TODO add decent run
-# TODO fix make shell
-
 version     ?= latest
-drunkardimg = cadicallegari/drunkard:$(version)
+drunkardimg  = cadicallegari/drunkard:$(version)
 devimg       = drunkarddev
-# GOPATH      ?= $(HOME)/go
-# packagename  = $(shell pwd | sed "s:"$(GOPATH)"/src/::")
 packagename  = cadicallegari/drunkard
 workdir      = /go/src/$(packagename)
 runargs      = --rm -v `pwd`:$(workdir) --workdir $(workdir) $(devimg)
@@ -41,9 +35,6 @@ vendor: imagedev
 build: imagedev
 	$(runcmd) go build -v -ldflags "-X main.Version=$(gitversion)" -o ./cmd/drunkard/drunkard ./cmd/drunkard/main.go
 
-analyze:
-	$(runcmd) ./hack/analyze.sh
-
 check: imagedev
 	$(runcompose) ./hack/check.sh $(pkg) $(test) $(args)
 
@@ -52,12 +43,6 @@ check-integration: imagedev
 
 run: image
 	docker-compose run --service-ports --entrypoint "/app/drunkard" --rm drunkard
-
-coverage: imagedev
-	$(runcmd) ./hack/coverage.sh
-
-coverage-show: coverage
-	xdg-open fullcov.html
 
 shell: imagedev
 	$(runcmd)
